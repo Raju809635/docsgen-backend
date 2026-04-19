@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: docsgen-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-2024-08-06
+      - key: OPENAI_BASE_URL
+        value: ""
+      - key: OPENAI_USE_JSON_SCHEMA
+        value: "1"
+      - key: FRONTEND_ORIGIN
+        sync: false
+
