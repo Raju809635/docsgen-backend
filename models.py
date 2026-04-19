@@ -7,6 +7,23 @@ class GenerateDocsRequest(BaseModel):
     text: str = Field(min_length=1, max_length=200_000)
 
 
+class DiagramItem(BaseModel):
+    title: str
+    type: str = Field(description="Expected values: mermaid or graphviz")
+    code: str
+    summary: str
+
+
+class DocSection(BaseModel):
+    title: str
+    content: str
+
+
+class DocPage(BaseModel):
+    title: str
+    sections: list[DocSection]
+
+
 class DocsResponse(BaseModel):
     title: str
     overview: str
@@ -14,4 +31,6 @@ class DocsResponse(BaseModel):
     diagram: str
     technical: str
     use_cases: str
-
+    sections: list[DocSection] = Field(default_factory=list)
+    diagrams: list[DiagramItem] = Field(default_factory=list)
+    pages: list[DocPage] = Field(default_factory=list)
