@@ -181,6 +181,18 @@ def _normalize_graphviz(code: str) -> str:
     )
 
 
+def _looks_like_diagram_section(title: str, content: str) -> bool:
+    normalized_title = title.strip().lower()
+    normalized_content = content.strip().lower()
+    if "diagram" in normalized_title or "mermaid" in normalized_title or "graphviz" in normalized_title:
+        return True
+    if normalized_content.startswith("flowchart ") or normalized_content.startswith("sequencediagram"):
+        return True
+    if normalized_content.startswith("graph ") or normalized_content.startswith("digraph "):
+        return True
+    return "classdef " in normalized_content or "linkstyle " in normalized_content
+
+
 def _coerce_sections(data: dict[str, Any]) -> list[dict[str, str]]:
     sections = data.get("sections")
     if isinstance(sections, list) and sections:
@@ -191,6 +203,8 @@ def _coerce_sections(data: dict[str, Any]) -> list[dict[str, str]]:
             title = str(item.get("title", "")).strip() or "Section"
             content = str(item.get("content", "")).strip()
             if not content:
+                continue
+            if _looks_like_diagram_section(title, content):
                 continue
             normalized_sections.append({"title": title, "content": content})
         if normalized_sections:
@@ -268,12 +282,15 @@ def _coerce_pages(
             if isinstance(page_sections, list):
                 for section in page_sections:
                     if isinstance(section, dict):
+                        title = str(section.get("title", "")).strip() or "Section"
                         content = str(section.get("content", "")).strip()
                         if not content:
                             continue
+                        if _looks_like_diagram_section(title, content):
+                            continue
                         normalized_page_sections.append(
                             {
-                                "title": str(section.get("title", "")).strip() or "Section",
+                                "title": title,
                                 "content": content,
                             }
                         )
