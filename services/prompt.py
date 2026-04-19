@@ -30,3 +30,26 @@ Generate structured documentation for the above.
 Target page count: {page_count}
 
 Aim to organize the output so it can be exported into approximately {page_count} pages, while keeping the content neat, clear, and useful."""
+
+
+PREVIEW_SYSTEM_INSTRUCTIONS = """You are a senior technical writer and information architect.
+
+Your job is to plan a page-by-page documentation outline before the full documentation is generated.
+
+Rules:
+- Output JSON that matches the provided schema exactly.
+- Create a neat, useful page plan for the requested number of pages.
+- Every page must have meaningful content.
+- Keep each page summary concise and practical.
+- Each page should list 2 to 5 section headings.
+- Use plain text only.
+"""
+
+
+PREVIEW_PROMPT_TEMPLATE = """Input to document:
+---
+{user_input}
+---
+
+Create a page-wise documentation plan for approximately {page_count} pages.
+Every page must contain meaningful content and a clear purpose."""

@@ -11,8 +11,13 @@ except Exception:  # noqa: BLE001
     OpenAI = None  # type: ignore[assignment]
 
 from config import settings
-from models import DocsResponse
-from services.prompt import SYSTEM_INSTRUCTIONS, USER_PROMPT_TEMPLATE
+from models import DocsResponse, PreviewPagesResponse
+from services.prompt import (
+    PREVIEW_PROMPT_TEMPLATE,
+    PREVIEW_SYSTEM_INSTRUCTIONS,
+    SYSTEM_INSTRUCTIONS,
+    USER_PROMPT_TEMPLATE,
+)
 
 
 DOCS_SCHEMA: dict[str, Any] = {
@@ -85,6 +90,33 @@ DOCS_SCHEMA: dict[str, Any] = {
         "diagrams",
         "pages",
     ],
+    "additionalProperties": False,
+}
+
+PREVIEW_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string"},
+        "summary": {"type": "string"},
+        "pages": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "page_number": {"type": "integer"},
+                    "title": {"type": "string"},
+                    "summary": {"type": "string"},
+                    "sections": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+                "required": ["page_number", "title", "summary", "sections"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["title", "summary", "pages"],
     "additionalProperties": False,
 }
 
@@ -298,6 +330,53 @@ def _normalize_docs_payload(data: dict[str, Any], requested_page_count: int) -> 
     return data
 
 
+def _normalize_preview_payload(data: dict[str, Any], requested_page_count: int) -> dict[str, Any]:
+    pages = data.get("pages")
+    normalized_pages: list[dict[str, Any]] = []
+
+    if isinstance(pages, list):
+        for index, page in enumerate(pages[:requested_page_count], start=1):
+            if not isinstance(page, dict):
+                continue
+            sections = page.get("sections")
+            normalized_sections = []
+            if isinstance(sections, list):
+                for section in sections:
+                    section_text = str(section).strip()
+                    if section_text:
+                        normalized_sections.append(section_text)
+            if not normalized_sections:
+                normalized_sections = ["Overview", "Key concepts"]
+            summary = str(page.get("summary", "")).strip()
+            if not summary:
+                summary = "Planned content for this page."
+            normalized_pages.append(
+                {
+                    "page_number": index,
+                    "title": str(page.get("title", "")).strip() or f"Page {index}",
+                    "summary": summary,
+                    "sections": normalized_sections[:5],
+                }
+            )
+
+    if not normalized_pages:
+        page_total = max(1, min(requested_page_count, 50))
+        normalized_pages = [
+            {
+                "page_number": index,
+                "title": f"Page {index}",
+                "summary": "Planned documentation content.",
+                "sections": ["Overview", "Key details"],
+            }
+            for index in range(1, page_total + 1)
+        ]
+
+    data["title"] = str(data.get("title", "")).strip() or "Documentation Plan"
+    data["summary"] = str(data.get("summary", "")).strip() or "Page-wise documentation preview."
+    data["pages"] = normalized_pages
+    return data
+
+
 def _parse_json(output_text: str) -> dict[str, Any]:
     return json.loads((output_text or "").strip())
 
@@ -391,6 +470,49 @@ def generate_docs(user_input: str, page_count: int = 5) -> DocsResponse:
             last_error = exc
             retry_input += (
                 "\n\nIMPORTANT: Your last response was invalid. Return JSON matching the schema exactly."
+            )
+
+    assert last_error is not None
+    raise last_error
+
+
+def preview_pages(user_input: str, page_count: int = 5) -> PreviewPagesResponse:
+    if not settings.llm_api_key:
+        raise RuntimeError("GROQ_API_KEY is not set.")
+
+    client = _openai_client()
+    requested_page_count = max(1, min(page_count, 50))
+    prompt = PREVIEW_PROMPT_TEMPLATE.format(
+        user_input=user_input,
+        page_count=requested_page_count,
+    )
+
+    last_error: Exception | None = None
+    retry_input = prompt
+    for _ in range(3):
+        try:
+            completion = client.chat.completions.create(
+                model=settings.llm_model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": PREVIEW_SYSTEM_INSTRUCTIONS
+                        + "\nReturn JSON only that matches the schema exactly."
+                        + "\nDo not wrap the JSON in markdown fences.",
+                    },
+                    {"role": "user", "content": retry_input},
+                ],
+                temperature=0.2,
+                response_format={"type": "json_object"},
+            )
+            content = (completion.choices[0].message.content or "").strip()
+            data = _extract_json_candidate(content)
+            data = _normalize_preview_payload(data, requested_page_count)
+            return PreviewPagesResponse.model_validate(data)
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+            retry_input += (
+                "\n\nIMPORTANT: Return valid JSON matching the required preview schema exactly."
             )
 
     assert last_error is not None
