@@ -132,14 +132,6 @@ def _ensure_colorful_mermaid(code: str) -> str:
             "classDef ai fill:#111827,stroke:#a78bfa,color:#e2e8f0,stroke-width:2px;\n"
             "classDef out fill:#0f172a,stroke:#34d399,color:#e2e8f0,stroke-width:2px;\n"
         )
-    if "%%{init:" not in c:
-        c = (
-            "%%{init: {\"theme\":\"dark\",\"themeVariables\":{"
-            "\"primaryColor\":\"#0b1220\",\"primaryTextColor\":\"#e2e8f0\","
-            "\"primaryBorderColor\":\"#38bdf8\",\"lineColor\":\"#94a3b8\","
-            "\"tertiaryColor\":\"#111827\"}}}%%\n"
-            + c
-        )
     return c.strip()
 
 
@@ -160,14 +152,17 @@ def _normalize_graphviz(code: str) -> str:
 def _coerce_sections(data: dict[str, Any]) -> list[dict[str, str]]:
     sections = data.get("sections")
     if isinstance(sections, list) and sections:
-        return [
-            {
-                "title": str(item.get("title", "")).strip() or "Section",
-                "content": str(item.get("content", "")).strip(),
-            }
-            for item in sections
-            if isinstance(item, dict)
-        ]
+        normalized_sections = []
+        for item in sections:
+            if not isinstance(item, dict):
+                continue
+            title = str(item.get("title", "")).strip() or "Section"
+            content = str(item.get("content", "")).strip()
+            if not content:
+                continue
+            normalized_sections.append({"title": title, "content": content})
+        if normalized_sections:
+            return normalized_sections
 
     return [
         {"title": "Overview", "content": str(data.get("overview", "")).strip()},
@@ -241,12 +236,17 @@ def _coerce_pages(
             if isinstance(page_sections, list):
                 for section in page_sections:
                     if isinstance(section, dict):
+                        content = str(section.get("content", "")).strip()
+                        if not content:
+                            continue
                         normalized_page_sections.append(
                             {
                                 "title": str(section.get("title", "")).strip() or "Section",
-                                "content": str(section.get("content", "")).strip(),
+                                "content": content,
                             }
                         )
+            if not normalized_page_sections:
+                continue
             normalized_pages.append(
                 {
                     "title": str(page.get("title", "")).strip() or "Documentation Page",
