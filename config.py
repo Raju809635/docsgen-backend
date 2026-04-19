@@ -19,7 +19,7 @@ def _truthy(value: str | None, default: bool) -> bool:
 class Settings:
     # Groq (preferred). OpenAI env fallbacks kept for compatibility.
     llm_api_key: str | None = os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_KEY")
-    llm_model: str = os.getenv("GROQ_MODEL", os.getenv("OPENAI_MODEL", "llama-3.1-8b-instant"))
+    llm_model: str = os.getenv("GROQ_MODEL", os.getenv("OPENAI_MODEL", "llama-3.3-70b-versatile"))
     llm_base_url: str = os.getenv(
         "GROQ_BASE_URL",
         os.getenv("OPENAI_BASE_URL", "https://api.groq.com/openai/v1"),

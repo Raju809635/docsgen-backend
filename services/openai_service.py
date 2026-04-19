@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 try:
@@ -86,6 +87,30 @@ def _parse_json(output_text: str) -> dict[str, Any]:
     return json.loads((output_text or "").strip())
 
 
+def _extract_json_candidate(output_text: str) -> dict[str, Any]:
+    text = (output_text or "").strip()
+    if not text:
+        raise ValueError("Model returned an empty response.")
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    stripped = _strip_code_fences(text)
+    if stripped != text:
+        try:
+            return json.loads(stripped)
+        except json.JSONDecodeError:
+            pass
+
+    match = re.search(r"\{.*\}", stripped, re.DOTALL)
+    if match:
+        return json.loads(match.group(0))
+
+    raise ValueError("Model did not return valid JSON.")
+
+
 def generate_docs(user_input: str) -> DocsResponse:
     if not settings.llm_api_key:
         raise RuntimeError("GROQ_API_KEY is not set.")
@@ -103,6 +128,7 @@ def generate_docs(user_input: str) -> DocsResponse:
                     {"role": "system", "content": SYSTEM_INSTRUCTIONS},
                     {"role": "user", "content": prompt},
                 ],
+                temperature=0.2,
                 response_format={
                     "type": "json_schema",
                     "json_schema": {
@@ -113,7 +139,7 @@ def generate_docs(user_input: str) -> DocsResponse:
                 },
             )
             content = (completion.choices[0].message.content or "").strip()
-            data = _parse_json(content)
+            data = _extract_json_candidate(content)
             data["diagram"] = _ensure_colorful_mermaid(data.get("diagram", ""))
             return DocsResponse.model_validate(data)
         except Exception:
@@ -129,14 +155,17 @@ def generate_docs(user_input: str) -> DocsResponse:
                     {
                         "role": "system",
                         "content": SYSTEM_INSTRUCTIONS
-                        + "\nReturn JSON only that matches the schema exactly.",
+                        + "\nReturn JSON only that matches the schema exactly."
+                        + "\nDo not wrap the JSON in markdown fences."
+                        + "\nDo not include any explanatory text before or after the JSON.",
                     },
                     {"role": "user", "content": retry_input},
                 ],
+                temperature=0.2,
                 response_format={"type": "json_object"},
             )
             content = (completion.choices[0].message.content or "").strip()
-            data = _parse_json(content)
+            data = _extract_json_candidate(content)
             data["diagram"] = _ensure_colorful_mermaid(data.get("diagram", ""))
             return DocsResponse.model_validate(data)
         except Exception as exc:  # noqa: BLE001

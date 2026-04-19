@@ -15,4 +15,4 @@ def post_generate_docs(body: GenerateDocsRequest) -> DocsResponse:
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=500, detail="Generation failed.") from exc
+        raise HTTPException(status_code=500, detail=f"Generation failed: {exc}") from exc
