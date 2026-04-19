@@ -26,4 +26,7 @@ USER_PROMPT_TEMPLATE = """Input to document:
 {user_input}
 ---
 
-Generate structured documentation for the above."""
+Generate structured documentation for the above.
+Target page count: {page_count}
+
+Aim to organize the output so it can be exported into approximately {page_count} pages, while keeping the content neat, clear, and useful."""

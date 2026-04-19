@@ -11,7 +11,7 @@ router = APIRouter()
 @router.post("/generate-docs", response_model=DocsResponse)
 def post_generate_docs(body: GenerateDocsRequest) -> DocsResponse:
     try:
-        return generate_docs(body.text)
+        return generate_docs(body.text, body.page_count)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001

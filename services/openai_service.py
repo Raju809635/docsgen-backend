@@ -225,7 +225,11 @@ def _coerce_diagrams(data: dict[str, Any]) -> list[dict[str, str]]:
     return normalized
 
 
-def _coerce_pages(data: dict[str, Any], sections: list[dict[str, str]]) -> list[dict[str, Any]]:
+def _coerce_pages(
+    data: dict[str, Any],
+    sections: list[dict[str, str]],
+    requested_page_count: int,
+) -> list[dict[str, Any]]:
     pages = data.get("pages")
     if isinstance(pages, list) and pages:
         normalized_pages: list[dict[str, Any]] = []
@@ -250,22 +254,39 @@ def _coerce_pages(data: dict[str, Any], sections: list[dict[str, str]]) -> list[
                 }
             )
         if normalized_pages:
+            if len(normalized_pages) > requested_page_count:
+                return normalized_pages[:requested_page_count]
             return normalized_pages
 
-    page_size = 2
-    return [
-        {
-            "title": f"Documentation Page {index // page_size + 1}",
-            "sections": sections[index : index + page_size],
-        }
-        for index in range(0, len(sections), page_size)
-    ]
+    if not sections:
+        sections = [{"title": "Overview", "content": str(data.get("overview", "")).strip()}]
+
+    page_count = max(1, min(requested_page_count, 50))
+    page_count = min(page_count, max(1, len(sections)))
+    pages: list[dict[str, Any]] = []
+    section_count = len(sections)
+
+    for page_index in range(page_count):
+        start = (page_index * section_count) // page_count
+        end = ((page_index + 1) * section_count) // page_count
+        chunk = sections[start:end]
+        if not chunk:
+            source = sections[min(page_index, section_count - 1)]
+            chunk = [source]
+        pages.append(
+            {
+                "title": f"Documentation Page {page_index + 1}",
+                "sections": chunk,
+            }
+        )
+
+    return pages
 
 
-def _normalize_docs_payload(data: dict[str, Any]) -> dict[str, Any]:
+def _normalize_docs_payload(data: dict[str, Any], requested_page_count: int) -> dict[str, Any]:
     sections = _coerce_sections(data)
     diagrams = _coerce_diagrams(data)
-    pages = _coerce_pages(data, sections)
+    pages = _coerce_pages(data, sections, requested_page_count)
 
     data["sections"] = sections
     data["diagrams"] = diagrams
@@ -305,12 +326,16 @@ def _extract_json_candidate(output_text: str) -> dict[str, Any]:
     raise ValueError("Model did not return valid JSON.")
 
 
-def generate_docs(user_input: str) -> DocsResponse:
+def generate_docs(user_input: str, page_count: int = 5) -> DocsResponse:
     if not settings.llm_api_key:
         raise RuntimeError("GROQ_API_KEY is not set.")
 
     client = _openai_client()
-    prompt = USER_PROMPT_TEMPLATE.format(user_input=user_input)
+    requested_page_count = max(1, min(page_count, 50))
+    prompt = USER_PROMPT_TEMPLATE.format(
+        user_input=user_input,
+        page_count=requested_page_count,
+    )
 
     # Prefer Structured Outputs via json_schema; fall back to JSON mode if unsupported.
     # Note: Groq supports Structured Outputs on Chat Completions (not the OpenAI Responses API).
@@ -334,7 +359,7 @@ def generate_docs(user_input: str) -> DocsResponse:
             )
             content = (completion.choices[0].message.content or "").strip()
             data = _extract_json_candidate(content)
-            data = _normalize_docs_payload(data)
+            data = _normalize_docs_payload(data, requested_page_count)
             return DocsResponse.model_validate(data)
         except Exception:
             pass
@@ -360,7 +385,7 @@ def generate_docs(user_input: str) -> DocsResponse:
             )
             content = (completion.choices[0].message.content or "").strip()
             data = _extract_json_candidate(content)
-            data = _normalize_docs_payload(data)
+            data = _normalize_docs_payload(data, requested_page_count)
             return DocsResponse.model_validate(data)
         except Exception as exc:  # noqa: BLE001
             last_error = exc
