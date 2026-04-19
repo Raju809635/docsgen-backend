@@ -14,11 +14,15 @@ Rules:
 - Create clean long-form documentation:
   - write clear, polished, professional explanations
   - expand beyond short summaries into teachable documentation
+  - prefer full explanations, definitions, rationale, examples, and implementation notes
+  - avoid one-paragraph pages unless the user explicitly asks for a very short output
   - organize output into multiple sections and multiple pages
 - `sections` should contain the main narrative blocks.
 - `pages` should group related sections into export-friendly pages.
 - `diagrams` should contain a mix of Mermaid and, when useful, Graphviz DOT.
 - Use plain text only (no markdown) in title/overview/workflow/technical/use_cases fields.
+- Each section should usually be at least 120 words when the topic allows.
+- Each page should usually contain 2 or more substantial sections when the topic allows.
 """
 
 USER_PROMPT_TEMPLATE = """Input to document:
@@ -29,7 +33,10 @@ USER_PROMPT_TEMPLATE = """Input to document:
 Generate structured documentation for the above.
 Target page count: {page_count}
 
-Aim to organize the output so it can be exported into approximately {page_count} pages, while keeping the content neat, clear, and useful."""
+Aim to organize the output so it can be exported into approximately {page_count} pages, while keeping the content neat, clear, and useful.
+Do not make the pages too short.
+Prefer fewer, fuller pages over many thin pages.
+Make each page feel complete and information-rich."""
 
 
 PREVIEW_SYSTEM_INSTRUCTIONS = """You are a senior technical writer and information architect.

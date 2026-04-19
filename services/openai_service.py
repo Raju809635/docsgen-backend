@@ -287,8 +287,8 @@ def _coerce_pages(
             )
         if normalized_pages:
             if len(normalized_pages) > requested_page_count:
-                return normalized_pages[:requested_page_count]
-            return normalized_pages
+                normalized_pages = normalized_pages[:requested_page_count]
+            return _merge_sparse_pages(normalized_pages)
 
     if not sections:
         sections = [{"title": "Overview", "content": str(data.get("overview", "")).strip()}]
@@ -312,7 +312,58 @@ def _coerce_pages(
             }
         )
 
-    return pages
+    return _merge_sparse_pages(pages)
+
+
+def _section_weight(section: dict[str, str]) -> int:
+    title = str(section.get("title", "")).strip()
+    content = str(section.get("content", "")).strip()
+    return len(title) + len(content)
+
+
+def _page_weight(page: dict[str, Any]) -> int:
+    return sum(_section_weight(section) for section in page.get("sections", []))
+
+
+def _merge_sparse_pages(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not pages:
+        return pages
+
+    min_page_weight = 900
+    min_sections = 2
+    merged_pages: list[dict[str, Any]] = []
+
+    for page in pages:
+        current_sections = [
+            section
+            for section in page.get("sections", [])
+            if str(section.get("content", "")).strip()
+        ]
+        if not current_sections:
+            continue
+
+        candidate = {
+            "title": str(page.get("title", "")).strip() or "Documentation Page",
+            "sections": current_sections,
+        }
+
+        if not merged_pages:
+            merged_pages.append(candidate)
+            continue
+
+        if _page_weight(candidate) < min_page_weight or len(current_sections) < min_sections:
+            merged_pages[-1]["sections"].extend(current_sections)
+            continue
+
+        merged_pages.append(candidate)
+
+    return [
+        {
+            "title": f"Documentation Page {index}",
+            "sections": page["sections"],
+        }
+        for index, page in enumerate(merged_pages, start=1)
+    ]
 
 
 def _normalize_docs_payload(data: dict[str, Any], requested_page_count: int) -> dict[str, Any]:
