@@ -16,6 +16,5 @@ uvicorn main:app --reload --port 8000
 
 - This repo includes `render.yaml` for Render Blueprint deploy.
 - Set environment variables:
-  - `OPENAI_API_KEY`
+  - `GROQ_API_KEY`
   - `FRONTEND_ORIGIN` (your Vercel URL, e.g. `https://your-app.vercel.app`)
-

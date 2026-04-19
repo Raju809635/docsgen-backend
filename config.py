@@ -17,10 +17,17 @@ def _truthy(value: str | None, default: bool) -> bool:
 
 @dataclass(frozen=True)
 class Settings:
-    openai_api_key: str | None = os.getenv("OPENAI_API_KEY")
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5")
-    openai_base_url: str | None = os.getenv("OPENAI_BASE_URL") or None
-    openai_use_json_schema: bool = _truthy(os.getenv("OPENAI_USE_JSON_SCHEMA"), True)
+    # Groq (preferred). OpenAI env fallbacks kept for compatibility.
+    llm_api_key: str | None = os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_KEY")
+    llm_model: str = os.getenv("GROQ_MODEL", os.getenv("OPENAI_MODEL", "llama-3.1-8b-instant"))
+    llm_base_url: str = os.getenv(
+        "GROQ_BASE_URL",
+        os.getenv("OPENAI_BASE_URL", "https://api.groq.com/openai/v1"),
+    )
+    llm_use_json_schema: bool = _truthy(
+        os.getenv("GROQ_USE_JSON_SCHEMA"),
+        _truthy(os.getenv("OPENAI_USE_JSON_SCHEMA"), False),
+    )
     frontend_origin: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 
 

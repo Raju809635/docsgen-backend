@@ -35,7 +35,7 @@ def _openai_client():
             "Your installed `openai` package is too old. "
             "Create a venv and run `pip install -r requirements.txt`."
         )
-    return OpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url)
+    return OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url)
 
 
 def _strip_code_fences(text: str) -> str:
@@ -87,31 +87,33 @@ def _parse_json(output_text: str) -> dict[str, Any]:
 
 
 def generate_docs(user_input: str) -> DocsResponse:
-    if not settings.openai_api_key:
-        raise RuntimeError("OPENAI_API_KEY is not set.")
+    if not settings.llm_api_key:
+        raise RuntimeError("GROQ_API_KEY is not set.")
 
     client = _openai_client()
     prompt = USER_PROMPT_TEMPLATE.format(user_input=user_input)
 
     # Prefer Structured Outputs via json_schema; fall back to JSON mode if unsupported.
-    if settings.openai_use_json_schema:
+    # Note: Groq supports Structured Outputs on Chat Completions (not the OpenAI Responses API).
+    if settings.llm_use_json_schema:
         try:
-            resp = client.responses.create(
-                model=settings.openai_model,
-                input=[
+            completion = client.chat.completions.create(
+                model=settings.llm_model,
+                messages=[
                     {"role": "system", "content": SYSTEM_INSTRUCTIONS},
                     {"role": "user", "content": prompt},
                 ],
-                text={
-                    "format": {
-                        "type": "json_schema",
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
                         "name": "ai_docs",
+                        "strict": False,
                         "schema": DOCS_SCHEMA,
-                        "strict": True,
-                    }
+                    },
                 },
             )
-            data = _parse_json(resp.output_text)
+            content = (completion.choices[0].message.content or "").strip()
+            data = _parse_json(content)
             data["diagram"] = _ensure_colorful_mermaid(data.get("diagram", ""))
             return DocsResponse.model_validate(data)
         except Exception:
@@ -121,9 +123,9 @@ def generate_docs(user_input: str) -> DocsResponse:
     retry_input = prompt
     for _ in range(3):
         try:
-            resp = client.responses.create(
-                model=settings.openai_model,
-                input=[
+            completion = client.chat.completions.create(
+                model=settings.llm_model,
+                messages=[
                     {
                         "role": "system",
                         "content": SYSTEM_INSTRUCTIONS
@@ -131,9 +133,10 @@ def generate_docs(user_input: str) -> DocsResponse:
                     },
                     {"role": "user", "content": retry_input},
                 ],
-                text={"format": {"type": "json_object"}},
+                response_format={"type": "json_object"},
             )
-            data = _parse_json(resp.output_text)
+            content = (completion.choices[0].message.content or "").strip()
+            data = _parse_json(content)
             data["diagram"] = _ensure_colorful_mermaid(data.get("diagram", ""))
             return DocsResponse.model_validate(data)
         except Exception as exc:  # noqa: BLE001

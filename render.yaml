@@ -6,13 +6,13 @@ services:
     healthCheckPath: /health
     autoDeploy: true
     envVars:
-      - key: OPENAI_API_KEY
+      - key: GROQ_API_KEY
         sync: false
-      - key: OPENAI_MODEL
-        value: gpt-4o-2024-08-06
-      - key: OPENAI_BASE_URL
-        value: ""
-      - key: OPENAI_USE_JSON_SCHEMA
-        value: "1"
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant
+      - key: GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: GROQ_USE_JSON_SCHEMA
+        value: "0"
       - key: FRONTEND_ORIGIN
         sync: false
