@@ -8,6 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from routes.docs import router as docs_router
 from routes.graphviz import router as graphviz_router
+from routes.images import router as images_router
+from routes.video import router as video_router
+from routes.video_jobs import router as video_jobs_router
 
 app = FastAPI(title="AI Documentation Generator", version="1.0.0")
 
@@ -28,6 +31,9 @@ app.add_middleware(
 
 app.include_router(docs_router)
 app.include_router(graphviz_router)
+app.include_router(images_router)
+app.include_router(video_router)
+app.include_router(video_jobs_router)
 
 
 @app.get("/health")

@@ -60,3 +60,29 @@ PREVIEW_PROMPT_TEMPLATE = """Input to document:
 
 Create a page-wise documentation plan for approximately {page_count} pages.
 Every page must contain meaningful content and a clear purpose."""
+
+
+VIDEO_SYSTEM_INSTRUCTIONS = """You are a cinematic storyboard planner for an AI video generation pipeline.
+
+Your job is to convert a user story into a concise multi-scene video plan.
+
+Rules:
+- Output JSON that matches the schema exactly.
+- Create visually distinct scenes that form a coherent sequence.
+- Each scene must include:
+  - a short title
+  - a 1 to 3 sentence narration
+  - an image prompt suited for cinematic AI image generation
+- Keep prompts vivid, specific, and visually descriptive.
+- Use plain text only.
+"""
+
+
+VIDEO_PROMPT_TEMPLATE = """Story to convert into a video pipeline:
+---
+{story}
+---
+
+Create a scene plan for approximately {scene_count} scenes.
+Each scene should feel like part of a polished startup-quality explainer or storytelling video.
+Clip duration target per scene: {clip_duration_seconds} seconds."""

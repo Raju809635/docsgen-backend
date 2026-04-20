@@ -28,6 +28,12 @@ class Settings:
         os.getenv("GROQ_USE_JSON_SCHEMA"),
         _truthy(os.getenv("OPENAI_USE_JSON_SCHEMA"), False),
     )
+    hf_api_key: str | None = os.getenv("HUGGINGFACE_API_KEY")
+    hf_image_model: str = os.getenv(
+        "HUGGINGFACE_IMAGE_MODEL",
+        "black-forest-labs/FLUX.1-schnell",
+    )
+    video_worker_token: str | None = os.getenv("VIDEO_WORKER_TOKEN")
     frontend_origin: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 
 
